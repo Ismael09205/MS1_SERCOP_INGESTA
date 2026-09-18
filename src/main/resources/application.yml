@@ -1,0 +1,17 @@
+sercop:
+  ingesta:
+    max-reintentos: 3
+    espera-inicial: 2000
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF

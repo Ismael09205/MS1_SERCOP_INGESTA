@@ -2,10 +2,15 @@ package com.ibm.sercop_ingestion_service.adapter.out.persistence.adapters;
 
 import com.ibm.sercop_ingestion_service.adapter.out.persistence.entityPersistence.ProcesoContratacionEntity;
 import com.ibm.sercop_ingestion_service.adapter.out.persistence.repository.ProcesoContratacionJpaRepository;
+import com.ibm.sercop_ingestion_service.application.exception.ErrorPersistenciaSercopException;
 import com.ibm.sercop_ingestion_service.application.mapper.ProcesoContratacionPersistenceMapper;
 import com.ibm.sercop_ingestion_service.application.port.out.ProcesoContratacionPersistencePort;
 import com.ibm.sercop_ingestion_service.domain.entities.ProcesoContratacion;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +25,9 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
 
     private final ProcesoContratacionJpaRepository repository;
     private final ProcesoContratacionPersistenceMapper mapper;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public ProcesoContratacionPersistenceAdapter(ProcesoContratacionJpaRepository repository, ProcesoContratacionPersistenceMapper mapper) {
         this.repository = repository;
@@ -37,6 +45,7 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
     }
 
     @Override
+    @Transactional
     public ProcesoContratacion actualizarProceso(ProcesoContratacion procesoContratacion) {
 
         Optional<ProcesoContratacionEntity> entidadExistente = repository.findByOcid(procesoContratacion.getOcid());
@@ -50,24 +59,11 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
 
         ProcesoContratacionEntity entidad = entidadExistente.get();
 
-        entidad.setIdentificadorSercop(procesoContratacion.getIdentificador());
-        entidad.setAnio(procesoContratacion.getAnio());
-        entidad.setMes(procesoContratacion.getMes());
-        entidad.setMetodo(procesoContratacion.getMetodo());
-        entidad.setTipoInterno(procesoContratacion.getTipoInterno());
-        entidad.setLocalidad(procesoContratacion.getLocalidad());
-        entidad.setRegion(procesoContratacion.getRegion());
-        entidad.setProveedores(procesoContratacion.getProveedores());
-        entidad.setComprador(procesoContratacion.getComprador());
-        entidad.setMonto(procesoContratacion.getMonto());
-        entidad.setFecha(procesoContratacion.getFecha());
-        entidad.setTitulo(procesoContratacion.getTitulo());
-        entidad.setDescripcion(procesoContratacion.getDescripcion());
-        entidad.setPresupuesto(procesoContratacion.getPresupuesto());
+        actualizarEntidad(entidad, procesoContratacion);
 
-        ProcesoContratacionEntity entidadActualizada = repository.save(entidad);
+        entityManager.flush();
 
-        return mapper.toDomain(entidadActualizada);
+        return mapper.toDomain(entidad);
     }
 
     @Override
@@ -76,6 +72,7 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ProcesoContratacion> buscarPorOcids(List<String> ocids) {
 
         List<ProcesoContratacionEntity> entidades = new ArrayList<>();
@@ -95,64 +92,98 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
     }
 
     @Override
-    public List<ProcesoContratacion> guardarProcesos(List<ProcesoContratacion> procesos) {
+    @Transactional
+    public void guardarProcesos(List<ProcesoContratacion> procesos) {
 
-        List<ProcesoContratacionEntity> entidades = procesos.stream()
-                .map(mapper::toEntity)
-                .toList();
+        if (procesos.isEmpty()) {
+            return;
+        }
 
-        List<ProcesoContratacionEntity> entidadesGuardadas = repository.saveAll(entidades);
+        try {
 
-        return entidadesGuardadas.stream()
-                .map(mapper::toDomain)
-                .toList();
+            List<ProcesoContratacionEntity> entidades = procesos.stream()
+                    .map(mapper::toEntity)
+                    .toList();
+
+            repository.saveAll(entidades);
+
+            entityManager.flush();
+            entityManager.clear();
+
+        } catch (DataAccessException e) {
+
+            throw new ErrorPersistenciaSercopException(
+                    "No se pudieron guardar los procesos de SERCOP",
+                    e
+            );
+        }
+    }
+    @Override
+    @Transactional
+    public void actualizarProcesos(List<ProcesoContratacion> procesos) {
+
+        if (procesos.isEmpty()) {
+            return;
+        }
+
+        try {
+
+            List<String> ocids = procesos.stream()
+                    .map(ProcesoContratacion::getOcid)
+                    .toList();
+
+            List<ProcesoContratacionEntity> entidadesExistentes = new ArrayList<>();
+
+            for (int inicio = 0; inicio < ocids.size(); inicio += TAMANO_BLOQUE_OCIDS) {
+
+                int fin = Math.min(inicio + TAMANO_BLOQUE_OCIDS, ocids.size());
+
+                List<String> bloque = ocids.subList(inicio, fin);
+
+                entidadesExistentes.addAll(repository.findByOcidIn(bloque));
+            }
+
+            Map<String, ProcesoContratacion> procesosPorOcid = procesos.stream()
+                    .collect(Collectors.toMap(ProcesoContratacion::getOcid, proceso -> proceso));
+
+            for (ProcesoContratacionEntity entidad : entidadesExistentes) {
+
+                ProcesoContratacion proceso = procesosPorOcid.get(entidad.getOcid());
+
+                if (proceso == null) {
+                    continue;
+                }
+
+                actualizarEntidad(entidad, proceso);
+            }
+
+            entityManager.flush();
+            entityManager.clear();
+
+        } catch (DataAccessException e) {
+
+            throw new ErrorPersistenciaSercopException(
+                    "No se pudieron actualizar los procesos de SERCOP",
+                    e
+            );
+        }
     }
 
-    @Override
-    public List<ProcesoContratacion> actualizarProcesos(List<ProcesoContratacion> procesos) {
+    private void actualizarEntidad(ProcesoContratacionEntity entidad, ProcesoContratacion proceso) {
 
-        List<String> ocids = procesos.stream()
-                .map(ProcesoContratacion::getOcid)
-                .toList();
-
-        List<ProcesoContratacionEntity> entidadesExistentes = new ArrayList<>();
-
-        for (int inicio = 0; inicio < ocids.size(); inicio += TAMANO_BLOQUE_OCIDS) {
-
-            int fin = Math.min(inicio + TAMANO_BLOQUE_OCIDS, ocids.size());
-
-            List<String> bloque = ocids.subList(inicio, fin);
-
-            entidadesExistentes.addAll(repository.findByOcidIn(bloque));
-        }
-
-        Map<String, ProcesoContratacion> procesosPorOcid = procesos.stream()
-                .collect(Collectors.toMap(ProcesoContratacion::getOcid, proceso -> proceso));
-
-        for (ProcesoContratacionEntity entidad : entidadesExistentes) {
-
-            ProcesoContratacion proceso = procesosPorOcid.get(entidad.getOcid());
-
-            entidad.setIdentificadorSercop(proceso.getIdentificador());
-            entidad.setAnio(proceso.getAnio());
-            entidad.setMes(proceso.getMes());
-            entidad.setMetodo(proceso.getMetodo());
-            entidad.setTipoInterno(proceso.getTipoInterno());
-            entidad.setLocalidad(proceso.getLocalidad());
-            entidad.setRegion(proceso.getRegion());
-            entidad.setProveedores(proceso.getProveedores());
-            entidad.setComprador(proceso.getComprador());
-            entidad.setMonto(proceso.getMonto());
-            entidad.setFecha(proceso.getFecha());
-            entidad.setTitulo(proceso.getTitulo());
-            entidad.setDescripcion(proceso.getDescripcion());
-            entidad.setPresupuesto(proceso.getPresupuesto());
-        }
-
-        List<ProcesoContratacionEntity> entidadesActualizadas = repository.saveAll(entidadesExistentes);
-
-        return entidadesActualizadas.stream()
-                .map(mapper::toDomain)
-                .toList();
+        entidad.setIdentificadorSercop(proceso.getIdentificador());
+        entidad.setAnio(proceso.getAnio());
+        entidad.setMes(proceso.getMes());
+        entidad.setMetodo(proceso.getMetodo());
+        entidad.setTipoInterno(proceso.getTipoInterno());
+        entidad.setLocalidad(proceso.getLocalidad());
+        entidad.setRegion(proceso.getRegion());
+        entidad.setProveedores(proceso.getProveedores());
+        entidad.setComprador(proceso.getComprador());
+        entidad.setMonto(proceso.getMonto());
+        entidad.setFecha(proceso.getFecha());
+        entidad.setTitulo(proceso.getTitulo());
+        entidad.setDescripcion(proceso.getDescripcion());
+        entidad.setPresupuesto(proceso.getPresupuesto());
     }
 }

@@ -1,10 +1,12 @@
 package com.ibm.sercop_ingestion_service.application.service;
 
+import com.ibm.sercop_ingestion_service.application.exception.ErrorPersistenciaSercopException;
 import com.ibm.sercop_ingestion_service.application.port.out.ProcesoContratacionPersistencePort;
 import com.ibm.sercop_ingestion_service.application.record.RegistroIngestaSercop;
 import com.ibm.sercop_ingestion_service.application.validator.ComparadorProcesoContratacion;
 import com.ibm.sercop_ingestion_service.application.validator.ProcesoValidadorSercop;
 import com.ibm.sercop_ingestion_service.domain.entities.ProcesoContratacion;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class ProcesarSercopProcesosService {
 
@@ -95,20 +98,54 @@ public class ProcesarSercopProcesosService {
 
         if (!procesosNuevos.isEmpty()) {
 
-            persistencePort.guardarProcesos(procesosNuevos);
+            try {
 
-            for (int i = 0; i < procesosNuevos.size(); i++) {
-                registro.registrarProcesoPersistido();
+                persistencePort.guardarProcesos(procesosNuevos);
+
+                for (int i = 0; i < procesosNuevos.size(); i++) {
+                    registro.registrarProcesoPersistido();
+                }
+
+            } catch (ErrorPersistenciaSercopException e) {
+
+                log.error(
+                        "Error al guardar lote de {} procesos de SERCOP",
+                        procesosNuevos.size(),
+                        e
+                );
+
+                throw e;
             }
         }
 
         if (!procesosModificados.isEmpty()) {
 
-            persistencePort.actualizarProcesos(procesosModificados);
+            try {
 
-            for (int i = 0; i < procesosModificados.size(); i++) {
-                registro.registrarProcesoActualizado();
+                persistencePort.actualizarProcesos(procesosModificados);
+
+                for (int i = 0; i < procesosModificados.size(); i++) {
+                    registro.registrarProcesoActualizado();
+                }
+
+            } catch (ErrorPersistenciaSercopException e) {
+
+                log.error(
+                        "Error al actualizar lote de {} procesos de SERCOP",
+                        procesosModificados.size(),
+                        e
+                );
+
+                throw e;
             }
         }
+
+        log.info(
+                "Lote procesado: nuevos={}, modificados={}, sin cambios={}, duplicados={}",
+                procesosNuevos.size(),
+                procesosModificados.size(),
+                procesos.size() - procesosNuevos.size() - procesosModificados.size(),
+                cantidadDuplicados
+        );
     }
 }

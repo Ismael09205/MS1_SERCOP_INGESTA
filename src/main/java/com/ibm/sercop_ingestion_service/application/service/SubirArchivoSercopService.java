@@ -1,11 +1,12 @@
 package com.ibm.sercop_ingestion_service.application.service;
 
+import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.sercop_ingestion_service.adapter.out.sercop.dto.DataJsonSercop;
+import com.ibm.sercop_ingestion_service.application.mapper.SercopMapper;
 import com.ibm.sercop_ingestion_service.application.port.out.RegistroIngestaSercopPersistencePort;
 import com.ibm.sercop_ingestion_service.application.record.RegistroIngestaSercop;
 import com.ibm.sercop_ingestion_service.domain.entities.ProcesoContratacion;
-import com.ibm.sercop_ingestion_service.application.mapper.SercopMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +23,8 @@ import java.util.zip.ZipInputStream;
 @Slf4j
 @Service
 public class SubirArchivoSercopService {
+
+    private static final int TAMANO_LOTE = 500;
 
     private final ObjectMapper objectMapper;
     private final SercopMapper sercopMapper;
@@ -73,7 +76,7 @@ public class SubirArchivoSercopService {
     }
 
     /**
-     * Procesa un archivo ZIP descargado automaticamente desde SERCOP.
+     * Procesa un archivo ZIP descargado automáticamente desde SERCOP.
      */
     public void procesarArchivo(Path archivo, RegistroIngestaSercop registro) {
 
@@ -89,7 +92,7 @@ public class SubirArchivoSercopService {
 
     /**
      * Procesa el contenido ZIP y transforma los registros JSON
-     * en entidades de dominio para su posterior procesamiento.
+     * en entidades de dominio por lotes.
      */
     private void procesarZip(InputStream entrada, RegistroIngestaSercop registro) {
 
@@ -109,23 +112,7 @@ public class SubirArchivoSercopService {
 
                 log.info("Procesando archivo JSON: {}", entradaZip.getName());
 
-                List<DataJsonSercop> datos = objectMapper.readValue(
-                        zipInputStream,
-                        objectMapper.getTypeFactory().constructCollectionType(List.class, DataJsonSercop.class)
-                );
-
-                registro.registrarProcesosRecibidos(datos.size());
-
-                List<ProcesoContratacion> procesos = new ArrayList<>();
-
-                for (DataJsonSercop dato : datos) {
-                    ProcesoContratacion proceso = sercopMapper.mapperProcesoContratacion(dato);
-                    procesos.add(proceso);
-                }
-
-                procesarSercopProcesosService.procesar(procesos, registro);
-
-                log.info("Registros procesados: {}", procesos.size());
+                procesarJsonPorLotes(zipInputStream, registro);
 
                 break;
             }
@@ -136,5 +123,60 @@ public class SubirArchivoSercopService {
                     e
             );
         }
+    }
+
+    /**
+     * Lee el JSON de forma progresiva y procesa los registros en lotes.
+     */
+    private void procesarJsonPorLotes(InputStream entrada, RegistroIngestaSercop registro) throws IOException {
+
+        MappingIterator<DataJsonSercop> iterador = objectMapper
+                .readerFor(DataJsonSercop.class)
+                .readValues(entrada);
+
+        List<ProcesoContratacion> lote = new ArrayList<>(TAMANO_LOTE);
+
+        int totalProcesados = 0;
+
+        while (iterador.hasNext()) {
+
+            DataJsonSercop dato = iterador.next();
+
+            ProcesoContratacion proceso = sercopMapper.mapperProcesoContratacion(dato);
+
+            lote.add(proceso);
+
+            if (lote.size() >= TAMANO_LOTE) {
+
+                procesarLote(lote, registro);
+
+                totalProcesados += lote.size();
+
+                lote.clear();
+            }
+        }
+
+        if (!lote.isEmpty()) {
+
+            procesarLote(lote, registro);
+
+            totalProcesados += lote.size();
+
+            lote.clear();
+        }
+
+        registro.registrarProcesosRecibidos(totalProcesados);
+
+        log.info("Archivo JSON procesado. Total de registros: {}", totalProcesados);
+    }
+
+    /**
+     * Envía un lote de procesos al servicio de procesamiento.
+     */
+    private void procesarLote(List<ProcesoContratacion> lote, RegistroIngestaSercop registro) {
+
+        procesarSercopProcesosService.procesar(lote, registro);
+
+        log.info("Lote procesado correctamente. Registros del lote: {}", lote.size());
     }
 }

@@ -15,7 +15,7 @@ public interface ProcesoContratacionPersistencePort {
 
     List<ProcesoContratacion> buscarPorOcids(List<String> ocids);
 
-    List<ProcesoContratacion> guardarProcesos(List<ProcesoContratacion> procesos);
+    void guardarProcesos(List<ProcesoContratacion> procesos);
 
-    List<ProcesoContratacion> actualizarProcesos(List<ProcesoContratacion> procesos);
+    void actualizarProcesos(List<ProcesoContratacion> procesos);
 }

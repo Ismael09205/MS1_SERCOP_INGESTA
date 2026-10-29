@@ -5,6 +5,7 @@ import com.ibm.sercop_ingestion_service.application.port.out.ProcesoContratacion
 import com.ibm.sercop_ingestion_service.application.record.RegistroIngestaSercop;
 import com.ibm.sercop_ingestion_service.application.validator.ComparadorProcesoContratacion;
 import com.ibm.sercop_ingestion_service.application.validator.ProcesoValidadorSercop;
+import com.ibm.sercop_ingestion_service.domain.entities.FiltroContratacionCpc;
 import com.ibm.sercop_ingestion_service.domain.entities.ProcesoContratacion;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,11 @@ public class ProcesarSercopProcesosService {
 
             if (!validador.esValido(proceso)) {
                 registro.registrarProcesoInvalido();
+                continue;
+            }
+
+            if (!FiltroContratacionCpc.esRelevante(proceso)) {
+                registro.registrarProcesoExcluidoCpc();
                 continue;
             }
 

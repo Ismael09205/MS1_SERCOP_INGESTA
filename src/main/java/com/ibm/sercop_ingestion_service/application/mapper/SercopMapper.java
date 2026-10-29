@@ -2,6 +2,7 @@ package com.ibm.sercop_ingestion_service.application.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ibm.sercop_ingestion_service.adapter.out.sercop.dto.DataJsonSercop;
+import com.ibm.sercop_ingestion_service.domain.entities.FiltroContratacionCpc;
 import com.ibm.sercop_ingestion_service.domain.entities.ProcesoContratacion;
 import org.springframework.stereotype.Component;
 
@@ -91,6 +92,57 @@ public class SercopMapper {
             }
         }
 
+        extraerCodigoCpc(procesoContratacion, release);
+
+        FiltroContratacionCpc.aplicar(procesoContratacion);
+
         return procesoContratacion;
+    }
+
+    /**
+     * Extrae el código CPC del primer ítem del tender.
+     * Prioriza additionalClassifications (formato con puntos) sobre classification.
+     */
+    private void extraerCodigoCpc(ProcesoContratacion proceso, JsonNode release) {
+
+        JsonNode items = release.path("tender").path("items");
+
+        if (!items.isArray() || items.isEmpty()) {
+            return;
+        }
+
+        JsonNode primerItem = items.get(0);
+
+        // Intentar con additionalClassifications primero (e.g. "51290.00.2")
+        JsonNode adicionales = primerItem.path("additionalClassifications");
+
+        if (adicionales.isArray() && !adicionales.isEmpty()) {
+
+            for (JsonNode adicional : adicionales) {
+
+                String esquema = adicional.path("scheme").asText("");
+
+                if ("CPC".equalsIgnoreCase(esquema)) {
+                    String codigo = adicional.path("id").asText(null);
+                    if (codigo != null && !codigo.isBlank()) {
+                        proceso.setCodigoCpc(codigo);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Fallback: classification principal (e.g. "512900021")
+        JsonNode clasificacion = primerItem.path("classification");
+
+        if (!clasificacion.isMissingNode()) {
+            String esquema = clasificacion.path("scheme").asText("");
+            if ("CPC".equalsIgnoreCase(esquema)) {
+                String codigo = clasificacion.path("id").asText(null);
+                if (codigo != null && !codigo.isBlank()) {
+                    proceso.setCodigoCpc(codigo);
+                }
+            }
+        }
     }
 }

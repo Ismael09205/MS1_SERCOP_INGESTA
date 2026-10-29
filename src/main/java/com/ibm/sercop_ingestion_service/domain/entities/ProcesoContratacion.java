@@ -1,5 +1,6 @@
 package com.ibm.sercop_ingestion_service.domain.entities;
 
+import com.ibm.sercop_ingestion_service.domain.enums.CpcCategoria;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,4 +25,8 @@ public class ProcesoContratacion {
     private String titulo;
     private String descripcion;
     private BigDecimal presupuesto;
+    // Código CPC principal extraído del ítem del proceso
+    private String codigoCpc;
+    // Categoría de software/cloud a la que pertenece según el código CPC
+    private CpcCategoria categoriaCpc;
 }

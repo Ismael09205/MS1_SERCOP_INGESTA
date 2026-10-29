@@ -185,5 +185,7 @@ public class ProcesoContratacionPersistenceAdapter implements ProcesoContratacio
         entidad.setTitulo(proceso.getTitulo());
         entidad.setDescripcion(proceso.getDescripcion());
         entidad.setPresupuesto(proceso.getPresupuesto());
+        entidad.setCodigoCpc(proceso.getCodigoCpc());
+        entidad.setCategoriaCpc(proceso.getCategoriaCpc());
     }
 }

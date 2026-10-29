@@ -26,6 +26,8 @@ public class ProcesoContratacionPersistenceMapper {
         entity.setTitulo(proceso.getTitulo());
         entity.setDescripcion(proceso.getDescripcion());
         entity.setPresupuesto(proceso.getPresupuesto());
+        entity.setCodigoCpc(proceso.getCodigoCpc());
+        entity.setCategoriaCpc(proceso.getCategoriaCpc());
 
         return entity;
     }
@@ -50,6 +52,8 @@ public class ProcesoContratacionPersistenceMapper {
         proceso.setTitulo(entity.getTitulo());
         proceso.setDescripcion(entity.getDescripcion());
         proceso.setPresupuesto(entity.getPresupuesto());
+        proceso.setCodigoCpc(entity.getCodigoCpc());
+        proceso.setCategoriaCpc(entity.getCategoriaCpc());
 
         return proceso;
     }

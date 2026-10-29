@@ -1,5 +1,6 @@
 package com.ibm.sercop_ingestion_service.adapter.out.persistence.entityPersistence;
 
+import com.ibm.sercop_ingestion_service.domain.enums.CpcCategoria;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,4 +36,11 @@ public class ProcesoContratacionEntity {
     @Column(columnDefinition = "TEXT")
     private String descripcion;
     private BigDecimal presupuesto;
+    // Código CPC principal del proceso
+    @Column(name = "codigo_cpc")
+    private String codigoCpc;
+    // Categoría de software/cloud resuelta a partir del código CPC
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categoria_cpc")
+    private CpcCategoria categoriaCpc;
 }

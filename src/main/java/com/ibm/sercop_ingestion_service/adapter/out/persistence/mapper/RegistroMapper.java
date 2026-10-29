@@ -18,6 +18,7 @@ public class RegistroMapper {
         entidad.setProcesosPersistidos(registro.getProcesosPersistidos());
         entidad.setProcesosActualizados(registro.getProcesosActualizados());
         entidad.setProcesosSinCambios(registro.getProcesosSinCambios());
+        entidad.setProcesosExcluidosCpc(registro.getProcesosExcluidosCpc());
         entidad.setEstado(registro.getEstado());
         entidad.setFechaInicio(registro.getFechaInicio());
         entidad.setFechaFin(registro.getFechaFin());
@@ -36,6 +37,7 @@ public class RegistroMapper {
         registro.setProcesosPersistidos(entidad.getProcesosPersistidos());
         registro.setProcesosActualizados(entidad.getProcesosActualizados());
         registro.setProcesosSinCambios(entidad.getProcesosSinCambios());
+        registro.setProcesosExcluidosCpc(entidad.getProcesosExcluidosCpc());
         registro.setEstado(entidad.getEstado());
         registro.setFechaFin(entidad.getFechaFin());
 

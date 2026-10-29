@@ -37,6 +37,10 @@ public class RegistroIngestaSercopEntity {
     @Column(name = "procesos_sin_cambios", nullable = false)
     private int procesosSinCambios;
 
+    // Procesos excluidos por no coincidir con ningún prefijo CPC relevante
+    @Column(name = "procesos_excluidos_cpc", nullable = false)
+    private int procesosExcluidosCpc;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoIngestaSercop estado;

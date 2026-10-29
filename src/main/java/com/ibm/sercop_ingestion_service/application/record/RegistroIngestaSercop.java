@@ -20,6 +20,8 @@ public class RegistroIngestaSercop {
     private int procesosActualizados;
     private int procesosSinCambios;
     private int procesosDuplicados;
+    // Procesos excluidos por no coincidir con ningún prefijo CPC relevante
+    private int procesosExcluidosCpc;
     private EstadoIngestaSercop estado;
 
     public RegistroIngestaSercop() {
@@ -53,6 +55,10 @@ public class RegistroIngestaSercop {
 
     public void registrarProcesoDuplicado() {
         procesosDuplicados++;
+    }
+
+    public void registrarProcesoExcluidoCpc() {
+        procesosExcluidosCpc++;
     }
 
     public void finalizar() {

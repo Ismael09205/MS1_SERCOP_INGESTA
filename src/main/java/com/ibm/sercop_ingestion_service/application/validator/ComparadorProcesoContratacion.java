@@ -86,6 +86,16 @@ public class ComparadorProcesoContratacion {
             hayCambios = true;
         }
 
+        if (!Objects.equals(actual.getCodigoCpc(), nuevo.getCodigoCpc())) {
+            log.info("OCID '{}': codigoCpc: '{}' -> '{}'", nuevo.getOcid(), actual.getCodigoCpc(), nuevo.getCodigoCpc());
+            hayCambios = true;
+        }
+
+        if (!Objects.equals(actual.getCategoriaCpc(), nuevo.getCategoriaCpc())) {
+            log.info("OCID '{}': categoriaCpc: '{}' -> '{}'", nuevo.getOcid(), actual.getCategoriaCpc(), nuevo.getCategoriaCpc());
+            hayCambios = true;
+        }
+
         return hayCambios;
     }
 
